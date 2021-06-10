@@ -5,6 +5,64 @@ import time
 import sys
 
 
+def lynch_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
+                     initialize):
+    session = InstanceSession(instance_state.lynch_types)
+
+    server_ips = [
+        server.public_ip_address
+        for server in session.instances['lynch-server']
+    ]
+
+    config_file = (f'server_hostname0={server_ips[0]}\n'
+                   'server_port0=7000\n'
+                   f'server_hostname1={server_ips[1]}\n'
+                   'server_port1=7001\n'
+                   f'server_hostname2={server_ips[2]}\n'
+                   'server_port2=7002\n'
+                   'oram_file=oram.txt\n'
+                   'proxy_thread_count=10\n'
+                   'write_back_threshold=10\n'
+                   'block_size=4096\n'
+                   'blocks_in_bucket=4\n'
+                   'block_meta_data_size=18\n'
+                   'iv_size=16\n'
+                   'min_server_size=1000\n'
+                   'num_storage_servers=1\n'
+                   'num_oram_units=3\n'
+                   'incomplete_cache_limit=10000\n'
+                   'max_client_id=2000')
+
+    if initialize:
+        session.all_run_wait('killall java')
+        print('Killed java')
+
+        # launch servers
+        server_id = 0
+        for server in session.instances['lynch-server']:
+            session.ssh_clients[server].exec_command(
+                f'cd distributed-taostore/ && \
+                    echo "{config_file}" > target/config.properties && \
+                    nohup ./scripts/run-insecure-server.sh {server_id}')
+            server_id += 1
+
+    else:
+        # launch client
+        client = session.instances['lynch-client'][0]
+        stdin, stdout, stderr = session.ssh_clients[client].exec_command(
+            'cd distributed-taostore/'
+            f' && echo "{config_file}" > target/config.properties'
+            ' && ./scripts/run-insecure-client.sh '
+            f'{clients} {load_size} {rw_ratio} {zipf_exp} {warmup_ops}')
+
+        print('Launched client')
+
+        print(stdout.read())
+        print(stderr.read())
+
+    session.teardown('pkill -f InsecureTaoClient')
+
+
 def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
                      initialize):
     session = InstanceSession(instance_state.uoram_types)
@@ -23,7 +81,8 @@ def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
                    'num_storage_servers=1\n'
                    'server_port=26257\n'
                    f'storage_hostname1={server.public_ip_address}\n'
-                   'max_client_id=2000')
+                   'max_client_id=2000\n'
+                   f'connection_pool_size={clients}')
     if initialize:
         session.all_run_wait('killall java')
         print('Killed java')
@@ -38,7 +97,7 @@ def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
                     nohup ./scripts/run-proxy.sh')
     else:
         # launch client
-        client = session.instances['oram-client'][0]
+        client = session.instances['uoram-client'][0]
         stdin, stdout, stderr = session.ssh_clients[client].exec_command(
             'cd TaoStore/'
             f' && echo "{config_file}" > config.properties'
@@ -63,7 +122,7 @@ def cockroach_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
     ]
     proxy = session.instances['oram-proxy'][0]
     config_file = ('oram_file=oram.txt\n'
-                   'proxy_thread_count=10\n'
+                   'proxy_thread_count=30\n'
                    'write_back_threshold=10\n'
                    f'proxy_hostname={proxy.public_ip_address}\n'
                    'proxy_port=6000\n'
@@ -75,7 +134,8 @@ def cockroach_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
                    'num_storage_servers=1\n'
                    'server_port=26257\n'
                    f'storage_hostname1={server_ips[0]}\n'
-                   'max_client_id=2000')
+                   'max_client_id=2000\n'
+                   f'connection_pool_size={clients}')
 
     print(f'Proxy will talk to cockroach node at {server_ips[0]}')
 
@@ -89,11 +149,11 @@ def cockroach_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
         for server in session.instances['oram-server']:
             start_cmd = 'nohup cockroach start'\
                 ' --insecure'\
-                ' --store=type=mem,size=30GB'\
                 f' --advertise-addr={server.public_ip_address}'\
                 f' --join={",".join(server_ips)}'\
                 ' --background'\
                 '  > /dev/null 2>&1'
+            # ' --store=type=mem,size=30GB'\
 
             # print(start_cmd)
             session.ssh_clients[server].exec_command(start_cmd)
@@ -168,7 +228,7 @@ def cockroach_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
     session.teardown('pkill -f TaoClient')
 
 
-# distributed taostore experiments
+# replicated oram experiments
 def roram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
                      initialize):
     session = InstanceSession(instance_state.roram_types)
@@ -259,8 +319,11 @@ if __name__ == '__main__':
         cockroach_experiment(sys.argv[3], 3 * 60 * 1000, 0.5, 0.9, 100,
                              sys.argv[2] == 'init')
     elif sys.argv[1] == 'cockroach':
-        roram_experiment(sys.argv[3], 3 * 60 * 1000, 0.5, 0.9, 1000,
+        roram_experiment(sys.argv[3], 3 * 60 * 1000, 0.5, 0.9, 100,
                          sys.argv[2] == 'init')
     elif sys.argv[1] == 'uoram':
-        uoram_experiment(sys.argv[3], 3 * 60 * 1000, 0.5, 0.9, 1000,
+        uoram_experiment(sys.argv[3], 3 * 60 * 1000, 0.5, 0.9, 100,
+                         sys.argv[2] == 'init')
+    elif sys.argv[1] == 'lynch':
+        lynch_experiment(sys.argv[3], 3 * 60 * 1000, 0.5, 0.9, 100,
                          sys.argv[2] == 'init')

@@ -5,10 +5,12 @@ regions = ['us-west-1', 'us-east-1', 'us-east-2']
 cockroach_types = ['oram-client', 'oram-proxy', 'oram-server']
 roram_types = ['roram-client', 'roram-proxy', 'roram-server']
 uoram_types = ['uoram-client', 'uoram-proxy', 'uoram-server']
+lynch_types = ['lynch-client', 'lynch-server']
 types_map = {
     'cockroach': cockroach_types,
     'roram': roram_types,
-    'uoram': uoram_types
+    'uoram': uoram_types,
+    'lynch': lynch_types
 }
 
 
@@ -40,7 +42,6 @@ if __name__ == '__main__':
     instance_types = types_map.keys()
     if (len(sys.argv) < 3 or sys.argv[1] not in ['start', 'stop']
             or sys.argv[2] not in instance_types):
-        print(
-            f'Usage: {sys.argv[0]} start|stop {"|".join(instance_types)}')
+        print(f'Usage: {sys.argv[0]} start|stop {"|".join(instance_types)}')
         sys.exit(1)
     instance_state(sys.argv[1] == 'start', types_map[sys.argv[2]])
