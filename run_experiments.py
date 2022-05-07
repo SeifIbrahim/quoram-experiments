@@ -1,4 +1,3 @@
-# TODO explain the reasoning for needing two flushes one before and one after o_write
 from instance_session import InstanceSession
 import instance_state
 import subprocess
@@ -14,6 +13,11 @@ def lynch_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
         server.public_ip_address
         for server in session.instances['lynch-server']
     ]
+    client_ips = [
+        client.public_ip_address
+        for client in session.instances['lynch-client']
+    ]
+    print(f"Client IPs:\n{client_ips}")
 
     config_file = (f'server_hostname0={server_ips[0]}\n'
                    'server_port0=7000\n'
@@ -32,7 +36,11 @@ def lynch_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
                    'num_storage_servers=1\n'
                    'num_oram_units=3\n'
                    'incomplete_cache_limit=10000\n'
-                   'max_client_id=2000')
+                   'max_client_id=2000\n'
+                   f'proxy_service_threads={clients}\n'
+                   'client_timeout=100000')
+
+    print(config_file)
 
     if initialize:
         session.all_run_wait('killall java')
@@ -49,17 +57,21 @@ def lynch_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
 
     else:
         # launch client
-        client = session.instances['lynch-client'][0]
-        stdin, stdout, stderr = session.ssh_clients[client].exec_command(
-            'cd distributed-taostore/'
-            f' && echo "{config_file}" > target/config.properties'
-            ' && ./scripts/run-insecure-client.sh '
-            f'{clients} {load_size} {rw_ratio} {zipf_exp} {warmup_ops}')
+        client_outputs = [
+            session.ssh_clients[client].exec_command(
+                'cd distributed-taostore/'
+                f' && echo "{config_file}" > target/config.properties'
+                ' && ./scripts/run-insecure-client.sh '
+                f'{clients} {load_size} {rw_ratio} {zipf_exp} {warmup_ops}')
+            for client in session.instances['lynch-client']
+        ]
 
-        print('Launched client')
+        print('Launched clients')
 
-        print(stdout.read())
-        print(stderr.read())
+        for i, output in enumerate(client_outputs):
+            print(f'---------- CLIENT {i} OUTPUT ----------')
+            print(output[1].read().decode())
+            print(output[2].read().decode())
 
     session.teardown('pkill -f InsecureTaoClient')
 
@@ -85,13 +97,16 @@ def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
                    'max_client_id=2000\n'
                    f'connection_pool_size={clients}\n'
                    f'proxy_service_threads={clients}')
+
+    # print(config_file)
+    print(f"Proxy IP:\n{proxy.public_ip_address}")
     if initialize:
         session.all_run_wait('killall java')
         print('Killed java')
         # launch server
         session.ssh_clients[server].exec_command(f'cd TaoStore/ && \
                     echo "{config_file}" > config.properties && \
-                    nohup ./scripts/run-server.sh')
+                    nohup ./scripts/run-server.sh > server.log')
 
         # launch proxy
         session.ssh_clients[proxy].exec_command(f'cd TaoStore/ && \
@@ -99,17 +114,21 @@ def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
                     nohup ./scripts/run-proxy.sh > proxy.log')
     else:
         # launch client
-        client = session.instances['uoram-client'][0]
-        stdin, stdout, stderr = session.ssh_clients[client].exec_command(
-            'cd TaoStore/'
-            f' && echo "{config_file}" > config.properties'
-            ' && nohup ./scripts/run-client.sh'
-            f' {clients} {load_size} {rw_ratio} {zipf_exp} {warmup_ops}')
+        client_outputs = [
+            session.ssh_clients[client].exec_command(
+                'cd TaoStore/'
+                f' && echo "{config_file}" > config.properties'
+                ' && nohup ./scripts/run-client.sh'
+                f' {clients} {load_size} {rw_ratio} {zipf_exp} {warmup_ops}')
+            for client in session.instances['uoram-client']
+        ]
 
-        print('Launched client')
+        print('Launched clients')
 
-        print(stdout.read())
-        print(stderr.read())
+        for i, output in enumerate(client_outputs):
+            print(f'---------- CLIENT {i} OUTPUT ----------')
+            print(output[1].read().decode())
+            print(output[2].read().decode())
 
     session.teardown('pkill -f TaoClient')
 
@@ -137,6 +156,7 @@ def cockroach_experiment(clients, test_duration, rw_ratio, zipf_exp,
                    'server_port=26257\n'
                    f'storage_hostname1={server_ips[2]}\n'
                    'max_client_id=2000\n'
+                   f'proxy_service_threads={clients}\n'
                    f'connection_pool_size={clients}')
 
     print(f'Proxy will talk to cockroach node at {server_ips[2]}')
@@ -215,18 +235,27 @@ def cockroach_experiment(clients, test_duration, rw_ratio, zipf_exp,
 
     else:
         # launch client
-        client = session.instances['oram-client'][0]
-        stdin, stdout, stderr = session.ssh_clients[client].exec_command(
-            'cd TaoStore/'
-            f' && echo "{config_file}" > config.properties'
-            ' && nohup ./scripts/run-client.sh'
-            f' {clients} {test_duration} {rw_ratio} {zipf_exp} {warmup_ops}')
+        client_outputs = [
+            session.ssh_clients[client].exec_command(
+                'cd TaoStore/'
+                f' && echo "{config_file}" > config.properties'
+                ' && nohup ./scripts/run-client.sh'
+                f' {clients} {test_duration} {rw_ratio}'
+                f' {zipf_exp} {warmup_ops} {i}')
+            for i, client in enumerate(session.instances['oram-client'])
+        ]
 
-        print('Launched client')
+        print('Launched clients')
+
+        for i, output in enumerate(client_outputs):
+            print(f'---------- CLIENT {i} OUTPUT ----------')
+            print(output[1].read().decode())
+            print(output[2].read().decode())
 
         if test_crash:
             num_to_crash = num_replicas - (num_replicas // 2 + 1)
-            crash_delay = (test_duration // 2) // 1000
+            # crash_delay = (test_duration // 2) // 1000
+            crash_delay = 150
             print(f'Crashing {num_to_crash} units after {crash_delay} seconds')
             time.sleep(crash_delay)
             for i in range(num_to_crash):
@@ -235,16 +264,24 @@ def cockroach_experiment(clients, test_duration, rw_ratio, zipf_exp,
                     'pkill -9 -f cockroach')
             print('Finished crashing units')
 
-        print(stdout.read())
-        print(stderr.read())
-
     session.teardown('pkill -f TaoClient')
 
 
 # replicated oram experiments
 def roram_experiment(clients, test_duration, rw_ratio, zipf_exp, warmup_ops,
-                     initialize, num_replicas, test_crash):
+                     quorum_type, initialize, num_replicas, test_crash):
     session = InstanceSession(instance_state.roram_types)
+    # session.instances['roram-server'] = [
+    #     session.instances['roram-server'][0],
+    #     session.instances['roram-server'][1]
+    # ]
+    # session.instances['roram-proxy'] = [
+    #     session.instances['roram-proxy'][0],
+    #     session.instances['roram-proxy'][1]
+    # ]
+
+    # session.instances['roram-server'].insert(
+    # 1, session.instances['roram-proxy'][1])
 
     server_ips = [
         server.public_ip_address
@@ -253,6 +290,11 @@ def roram_experiment(clients, test_duration, rw_ratio, zipf_exp, warmup_ops,
     proxy_ips = [
         proxy.public_ip_address for proxy in session.instances['roram-proxy']
     ]
+    client_ips = [
+        client.public_ip_address
+        for client in session.instances['roram-client']
+    ]
+    print(f"Client IPs:\n{client_ips}")
 
     server_and_proxy_config = ''.join([
         f'server_hostname{i}={server_ips[i]}\n'
@@ -275,10 +317,13 @@ def roram_experiment(clients, test_duration, rw_ratio, zipf_exp, warmup_ops,
                    'incomplete_cache_limit=100000\n'
                    'max_client_id=2000\n'
                    f'proxy_service_threads={clients}\n'
-                   'access_daemon_delay=5000\n')
+                   'access_daemon_delay=0\n'
+                   'client_timeout=3000')
 
+    print(config_file)
     if initialize:
         session.all_run_wait('killall java')
+        time.sleep(1)
         print('Killed java')
 
         # launch servers
@@ -287,7 +332,8 @@ def roram_experiment(clients, test_duration, rw_ratio, zipf_exp, warmup_ops,
             session.ssh_clients[server].exec_command(
                 f'cd distributed-taostore/ && \
                     echo "{config_file}" > target/config.properties && \
-                    nohup ./scripts/run-server.sh {server_id}')
+                    nohup ./scripts/run-server.sh {server_id} \
+                    2>&1 > server{server_id}.log')
             server_id += 1
 
         # launch proxies
@@ -296,26 +342,28 @@ def roram_experiment(clients, test_duration, rw_ratio, zipf_exp, warmup_ops,
             session.ssh_clients[proxy].exec_command(
                 f'cd distributed-taostore/ && \
                     echo "{config_file}" > target/config.properties && \
-                    nohup ./scripts/run-proxy.sh {proxy_id} > proxy{proxy_id}.log'
-            )
+                    nohup ./scripts/run-proxy.sh {proxy_id} \
+                    2>&1 > proxy{proxy_id}.log')
             proxy_id += 1
 
     else:
-        # launch client
-        client = session.instances['roram-client'][0]
-        client_stdin, client_stdout, client_stderr = session.ssh_clients[
-            client].exec_command(
-                'cd distributed-taostore/'
-                f' && echo "{config_file}" > target/config.properties'
-                ' && ./scripts/run-client.sh '
-                f'{clients} {test_duration} {rw_ratio} {zipf_exp} {warmup_ops}'
-            )
+        # launch clients
+        client_outputs = [
+            session.ssh_clients[client].exec_command(
+                f'cd distributed-taostore/ \
+                 && echo "{config_file}" > target/config.properties \
+                 && ./scripts/run-client.sh \
+                {clients} {test_duration} {rw_ratio} {zipf_exp} {warmup_ops} \
+                        {quorum_type} {i}')
+            for i, client in enumerate(session.instances['roram-client'])
+        ]
 
-        print('Launched client')
+        print('Launched clients')
 
         if test_crash:
             num_to_crash = num_replicas - (num_replicas // 2 + 1)
-            crash_delay = (test_duration // 2) // 1000
+            # crash_delay = (test_duration // 2) // 1000
+            crash_delay = 150
             print(f'Crashing {num_to_crash} units after {crash_delay} seconds')
             time.sleep(crash_delay)
             for i in range(num_to_crash):
@@ -325,10 +373,10 @@ def roram_experiment(clients, test_duration, rw_ratio, zipf_exp, warmup_ops,
                 session.ssh_clients[server].exec_command('killall java')
             print('Finished crashing units')
 
-        print('---------- CLIENT OUTPUT ----------')
-        print(client_stdout.read())
-        print(client_stderr.read())
-        session.all_run_wait('killall java')
+        for i, output in enumerate(client_outputs):
+            print(f'---------- CLIENT {i} OUTPUT ----------')
+            print(output[1].read().decode())
+            print(output[2].read().decode())
 
     session.teardown('pkill -f TaoClient')
 
@@ -337,20 +385,19 @@ if __name__ == '__main__':
     instance_types = instance_state.types_map.keys()
     if ((len(sys.argv) < 4) or (sys.argv[1] not in instance_types)
             or (sys.argv[2] not in ['init', 'cont'])):
-        print(
-            f'Usage: {sys.argv[0]} {"|".join(instance_types)} init|cont num_clients'
-        )
+        print(f'Usage: {sys.argv[0]} {"|".join(instance_types)} \
+                    init|cont num_clients')
         sys.exit(1)
 
     if sys.argv[1] == 'cockroach':
-        cockroach_experiment(sys.argv[3], 3 * 60 * 1000, 0.5, 0.9, 100,
+        cockroach_experiment(int(sys.argv[3]), 3 * 60 * 1000, 0.5, 0.9, 100,
                              sys.argv[2] == 'init', 3, False)
     elif sys.argv[1] == 'roram':
-        roram_experiment(sys.argv[3], 3 * 60 * 1000, 0.5, 0.9, 100,
-                         sys.argv[2] == 'init', 3, False)
+        roram_experiment(int(sys.argv[3]), 6 * 60 * 1000, 0.5, .9, 100,
+                         'random', sys.argv[2] == 'init', 3, True)
     elif sys.argv[1] == 'uoram':
-        uoram_experiment(sys.argv[3], 6 * 60 * 1000, 0.5, 0.9, 100,
+        uoram_experiment(int(sys.argv[3]), 3 * 60 * 1000, 0.5, 0.9, 100,
                          sys.argv[2] == 'init')
     elif sys.argv[1] == 'lynch':
-        lynch_experiment(sys.argv[3], 3 * 60 * 1000, 0.5, 0.9, 100,
+        lynch_experiment(int(sys.argv[3]), 3 * 60 * 1000, 0.5, 0.9, 100,
                          sys.argv[2] == 'init')

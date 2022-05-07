@@ -1,7 +1,7 @@
 import boto3
 import sys
 
-regions = ['us-west-1', 'us-east-1', 'us-east-2']
+regions = ['us-west-1', 'us-east-1', 'us-east-2', 'us-west-2']
 cockroach_types = ['oram-client', 'oram-proxy', 'oram-server']
 roram_types = ['roram-client', 'roram-proxy', 'roram-server']
 uoram_types = ['uoram-client', 'uoram-proxy', 'uoram-server']
