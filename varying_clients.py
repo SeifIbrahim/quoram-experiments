@@ -7,7 +7,7 @@ from instance_session import (InstanceSession, INSTANCE_TYPES, RORAM_TYPES,
 import sys
 
 NUM_DATA_POINTS = 3
-NUM_CLIENTS = [1, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+NUM_CLIENTS = [3, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
 
 
 def roram_throughput_latency():
@@ -16,29 +16,33 @@ def roram_throughput_latency():
     session.start_instances()
     for i in range(NUM_DATA_POINTS):
         for num_clients in NUM_CLIENTS:
-            # initialize
-            roram_experiment(num_clients,
-                             DEFAULT_DURATION,
-                             DEFAULT_RW_RATIO,
-                             DEFAULT_ZIPF,
-                             DEFAULT_WARMUP,
-                             DEFAULT_K,
-                             'random',
-                             DEFAULT_REPLICAS,
-                             initialize=True,
-                             test_crash=False)
+            try:
+                # initialize
+                roram_experiment(num_clients // 3,
+                                 DEFAULT_DURATION,
+                                 DEFAULT_RW_RATIO,
+                                 DEFAULT_ZIPF,
+                                 DEFAULT_WARMUP,
+                                 DEFAULT_K,
+                                 'random',
+                                 DEFAULT_REPLICAS,
+                                 initialize=True,
+                                 test_crash=False)
 
-            # start experiment
-            results = roram_experiment(num_clients,
-                                       DEFAULT_DURATION,
-                                       DEFAULT_RW_RATIO,
-                                       DEFAULT_ZIPF,
-                                       DEFAULT_WARMUP,
-                                       DEFAULT_K,
-                                       'random',
-                                       DEFAULT_REPLICAS,
-                                       initialize=False,
-                                       test_crash=False)
+                # start experiment
+                results = roram_experiment(num_clients // 3,
+                                           DEFAULT_DURATION,
+                                           DEFAULT_RW_RATIO,
+                                           DEFAULT_ZIPF,
+                                           DEFAULT_WARMUP,
+                                           DEFAULT_K,
+                                           'random',
+                                           DEFAULT_REPLICAS,
+                                           initialize=False,
+                                           test_crash=False)
+            except TimeoutError:
+                print('Experiment timed out')
+                continue
 
             with open(f'roram_{num_clients}_{i}.log', 'w') as f:
                 f.write(results)
@@ -64,16 +68,19 @@ def cockroach_throughput_latency():
 
     for i in range(NUM_DATA_POINTS):
         for num_clients in NUM_CLIENTS:
-
-            # start experiment
-            results = cockroach_experiment(num_clients,
-                                           DEFAULT_DURATION,
-                                           DEFAULT_RW_RATIO,
-                                           DEFAULT_ZIPF,
-                                           DEFAULT_WARMUP,
-                                           DEFAULT_REPLICAS,
-                                           initialize=False,
-                                           test_crash=False)
+            try:
+                # start experiment
+                results = cockroach_experiment(num_clients // 3,
+                                               DEFAULT_DURATION,
+                                               DEFAULT_RW_RATIO,
+                                               DEFAULT_ZIPF,
+                                               DEFAULT_WARMUP,
+                                               DEFAULT_REPLICAS,
+                                               initialize=False,
+                                               test_crash=False)
+            except TimeoutError:
+                print('Experiment timed out')
+                continue
 
             with open(f'cockroach_{num_clients}_{i}.log', 'w') as f:
                 f.write(results)
@@ -88,25 +95,27 @@ def uoram_throughput_latency():
     session.start_instances()
     for i in range(NUM_DATA_POINTS):
         for num_clients in NUM_CLIENTS:
-            # initialize
-            uoram_experiment(num_clients,
-                             DEFAULT_DURATION,
-                             DEFAULT_RW_RATIO,
-                             DEFAULT_ZIPF,
-                             DEFAULT_WARMUP,
-                             DEFAULT_K,
-                             initialize=True,
-                             test_crash=False)
+            try:
+                # initialize
+                uoram_experiment(num_clients // 3,
+                                 DEFAULT_DURATION,
+                                 DEFAULT_RW_RATIO,
+                                 DEFAULT_ZIPF,
+                                 DEFAULT_WARMUP,
+                                 DEFAULT_K,
+                                 initialize=True)
 
-            # start experiment
-            results = uoram_experiment(num_clients,
-                                       DEFAULT_DURATION,
-                                       DEFAULT_RW_RATIO,
-                                       DEFAULT_ZIPF,
-                                       DEFAULT_WARMUP,
-                                       DEFAULT_K,
-                                       initialize=False,
-                                       test_crash=False)
+                # start experiment
+                results = uoram_experiment(num_clients // 3,
+                                           DEFAULT_DURATION,
+                                           DEFAULT_RW_RATIO,
+                                           DEFAULT_ZIPF,
+                                           DEFAULT_WARMUP,
+                                           DEFAULT_K,
+                                           initialize=False)
+            except TimeoutError:
+                print('Experiment timed out')
+                continue
 
             with open(f'uoram_{num_clients}_{i}.log', 'w') as f:
                 f.write(results)
@@ -121,21 +130,25 @@ def lynch_throughput_latency():
     session.start_instances()
     for i in range(NUM_DATA_POINTS):
         for num_clients in NUM_CLIENTS:
-            # initialize
-            lynch_experiment(num_clients,
-                             DEFAULT_DURATION,
-                             DEFAULT_RW_RATIO,
-                             DEFAULT_ZIPF,
-                             DEFAULT_WARMUP,
-                             initialize=True)
+            try:
+                # initialize
+                lynch_experiment(num_clients // 3,
+                                 DEFAULT_DURATION,
+                                 DEFAULT_RW_RATIO,
+                                 DEFAULT_ZIPF,
+                                 DEFAULT_WARMUP,
+                                 initialize=True)
 
-            # start experiment
-            results = lynch_experiment(num_clients,
-                                       DEFAULT_DURATION,
-                                       DEFAULT_RW_RATIO,
-                                       DEFAULT_ZIPF,
-                                       DEFAULT_WARMUP,
-                                       initialize=False)
+                # start experiment
+                results = lynch_experiment(num_clients // 3,
+                                           DEFAULT_DURATION,
+                                           DEFAULT_RW_RATIO,
+                                           DEFAULT_ZIPF,
+                                           DEFAULT_WARMUP,
+                                           initialize=False)
+            except TimeoutError:
+                print('Experiment timed out')
+                continue
 
             with open(f'lynch_{num_clients}_{i}.log', 'w') as f:
                 f.write(results)

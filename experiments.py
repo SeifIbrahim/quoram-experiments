@@ -1,9 +1,13 @@
+import functools
+import signal
+import os
+import errno
 from instance_session import (InstanceSession, COCKROACH_TYPES, RORAM_TYPES,
                               UORAM_TYPES, LYNCH_TYPES)
 import subprocess
 import time
 
-DEFAULT_CLIENTS = 300
+DEFAULT_CLIENTS = 100
 DEFAULT_DURATION = 3 * 60 * 1000
 DEFAULT_RW_RATIO = 0.5
 DEFAULT_ZIPF = 0.9
@@ -12,6 +16,31 @@ DEFAULT_K = 40
 DEFAULT_REPLICAS = 3
 
 
+class TimeoutError(Exception):
+    pass
+
+
+def timeout(seconds=10 * 60, error_message=os.strerror(errno.ETIME)):
+    def decorator(func):
+        def _handle_timeout(signum, frame):
+            raise TimeoutError(error_message)
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            signal.signal(signal.SIGALRM, _handle_timeout)
+            signal.alarm(seconds)
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                signal.alarm(0)
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+@timeout
 def lynch_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
                      initialize):
     results = ''
@@ -92,6 +121,7 @@ def lynch_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
         return results
 
 
+@timeout
 def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops, k,
                      initialize):
     results = ''
@@ -103,7 +133,7 @@ def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops, k,
     proxy = session.type_instances['uoram-proxy'][0]
     config_file = ('oram_file=oram.txt\n'
                    'proxy_thread_count=10\n'
-                   'write_back_threshold={k}\n'
+                   f'write_back_threshold={k}\n'
                    f'proxy_hostname={proxy.public_ip_address}\n'
                    'proxy_port=6000\n'
                    'block_size=4096\n'
@@ -143,8 +173,9 @@ def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops, k,
                 'cd TaoStore/'
                 f' && echo "{config_file}" > config.properties'
                 ' && nohup ./scripts/run-client.sh'
-                f' {clients} {load_size} {rw_ratio} {zipf_exp} {warmup_ops}')
-            for client in session.type_instances['uoram-client']
+                f' {clients} {load_size} {rw_ratio}'
+                f' {zipf_exp} {warmup_ops} {i}')
+            for i, client in enumerate(session.type_instances['uoram-client'])
         ]
 
         print('Launched clients')
@@ -162,6 +193,7 @@ def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops, k,
 
 
 # cockroach experiments
+@timeout
 def cockroach_experiment(clients, test_duration, rw_ratio, zipf_exp,
                          warmup_ops, num_replicas, initialize, test_crash):
     results = ''
@@ -282,8 +314,8 @@ def cockroach_experiment(clients, test_duration, rw_ratio, zipf_exp,
                 f' && echo "{config_file}" > config.properties'
                 ' && nohup ./scripts/run-client.sh'
                 f' {clients} {test_duration} {rw_ratio}'
-                f' {zipf_exp} {warmup_ops} {i}') for i,
-            client in enumerate(session.type_instances['cockroach-client'])
+                f' {zipf_exp} {warmup_ops} {i}') for i, client in enumerate(
+                    session.type_instances['cockroach-client'])
         ]
 
         print('Launched clients')
@@ -313,6 +345,7 @@ def cockroach_experiment(clients, test_duration, rw_ratio, zipf_exp,
 
 
 # replicated oram experiments
+@timeout
 def roram_experiment(clients, test_duration, rw_ratio, zipf_exp, warmup_ops, k,
                      quorum_type, num_replicas, initialize, test_crash):
     results = ''

@@ -2,6 +2,7 @@ import boto3
 import paramiko
 from collections import defaultdict
 import time
+from pathlib import Path
 
 REGIONS = ['us-west-1', 'us-east-1', 'us-east-2', 'us-west-2']
 COCKROACH_TYPES = ['cockroach-client', 'cockroach-proxy', 'cockroach-server']
@@ -66,7 +67,7 @@ class InstanceSession:
         # establish an ssh connection
         for region, instances in self.region_instances.items():
             key = paramiko.RSAKey.from_private_key_file(
-                f'/home/seif/.ssh/r-oram-{region}.pem')
+                f'{Path.home()}.ssh/r-oram-{region}.pem')
             for instance in instances:
                 client = paramiko.SSHClient()
                 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())

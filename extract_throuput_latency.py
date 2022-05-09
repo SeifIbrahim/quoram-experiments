@@ -6,6 +6,7 @@ from collections import defaultdict
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print(f'Usage: {sys.argv[0]} <file_prefix>')
+        sys.exit(1)
 
     file_list = glob.glob(f'{sys.argv[1]}*.log')
 
@@ -13,7 +14,9 @@ if __name__ == '__main__':
     throughputs = defaultdict(dict)
 
     for file_name in file_list:
-        _, config, run = re.match(r'(\w+)_(\d+)_(\d+).log', file_name).groups()
+        name_match = re.match(r'(\w+)_(\d+)_(\d+).log', file_name).groups()
+        config = int(name_match[1])
+        run = int(name_match[2])
         with open(file_name, 'r') as f:
             total_latency = 0
             total_throughput = 0
