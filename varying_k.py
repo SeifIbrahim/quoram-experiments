@@ -12,11 +12,8 @@ if __name__ == '__main__':
     session = InstanceSession(RORAM_TYPES)
     session.start_instances()
 
-    i = 0
-    while i < NUM_DATA_POINTS:
-        j = 7
-        while j < len(K_VALUES):
-            k = K_VALUES[j]
+    for i in range(NUM_DATA_POINTS):
+        for k in K_VALUES:
             # initialize
             roram_experiment(DEFAULT_CLIENTS,
                              DEFAULT_DURATION,

@@ -1,9 +1,10 @@
 import boto3
 import paramiko
 from collections import defaultdict
+import time
 
 REGIONS = ['us-west-1', 'us-east-1', 'us-east-2', 'us-west-2']
-COCKROACH_TYPES = ['oram-client', 'oram-proxy', 'oram-server']
+COCKROACH_TYPES = ['cockroach-client', 'cockroach-proxy', 'cockroach-server']
 RORAM_TYPES = ['roram-client', 'roram-proxy', 'roram-server']
 UORAM_TYPES = ['uoram-client', 'uoram-proxy', 'uoram-server']
 LYNCH_TYPES = ['lynch-client', 'lynch-server']
@@ -46,6 +47,7 @@ class InstanceSession:
         for instance in self.instance_region:
             instance.wait_until_running()
 
+        time.sleep(10)
         print('Instances are running')
 
     def stop_instances(self):

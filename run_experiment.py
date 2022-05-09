@@ -4,10 +4,10 @@ from experiments import (cockroach_experiment, roram_experiment,
                          DEFAULT_RW_RATIO, DEFAULT_ZIPF, DEFAULT_WARMUP,
                          DEFAULT_K, DEFAULT_REPLICAS)
 
-import instance_state
+from instance_session import INSTANCE_TYPES
 
 if __name__ == '__main__':
-    instance_types = instance_state.types_map.keys()
+    instance_types = INSTANCE_TYPES.keys()
     if ((len(sys.argv) < 4) or (sys.argv[1] not in instance_types)
             or (sys.argv[2] not in ['init', 'cont'])):
         print(f'Usage: {sys.argv[0]} {"|".join(instance_types)} \
