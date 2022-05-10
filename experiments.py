@@ -79,6 +79,7 @@ def lynch_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
         print(config_file)
 
         session.all_run_wait('killall java')
+        time.sleep(3)
         print('Killed java')
 
         # launch servers
@@ -127,6 +128,10 @@ def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops, k,
 
     server = session.type_instances['uoram-server'][0]
     proxy = session.type_instances['uoram-proxy'][0]
+    client_ips = [
+        client.public_ip_address
+        for client in session.type_instances['uoram-client']
+    ]
     config_file = ('oram_file=oram.txt\n'
                    'proxy_thread_count=10\n'
                    f'write_back_threshold={k}\n'
@@ -138,7 +143,7 @@ def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops, k,
                    'iv_size=16\n'
                    'min_server_size=1000\n'
                    'num_storage_servers=1\n'
-                   'server_port=26257\n'
+                   'server_port=7000\n'
                    f'storage_hostname1={server.public_ip_address}\n'
                    'max_client_id=2000\n'
                    f'connection_pool_size={clients}\n'
@@ -146,15 +151,19 @@ def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops, k,
 
     if initialize:
         print('Starting Unreplicated TaoStore Experiment')
-        print(f"Proxy IP:\n{proxy.public_ip_address}")
+        print(client_ips)
         print(config_file)
 
         session.all_run_wait('killall java')
+        time.sleep(3)
         print('Killed java')
+
         # launch server
         session.ssh_clients[server].exec_command(f'cd TaoStore/ && \
                     echo "{config_file}" > config.properties && \
                     nohup ./scripts/run-server.sh > server.log')
+
+        time.sleep(3)
 
         # launch proxy
         session.ssh_clients[proxy].exec_command(f'cd TaoStore/ && \
@@ -391,6 +400,7 @@ def roram_experiment(clients, test_duration, rw_ratio, zipf_exp, warmup_ops, k,
         print(config_file)
 
         session.all_run_wait('killall java')
+        time.sleep(3)
         print('Killed java')
 
         # launch servers
@@ -402,6 +412,8 @@ def roram_experiment(clients, test_duration, rw_ratio, zipf_exp, warmup_ops, k,
                     nohup ./scripts/run-server.sh {server_id} \
                     2>&1 > server{server_id}.log')
             server_id += 1
+
+        time.sleep(3)
 
         # launch proxies
         proxy_id = 0

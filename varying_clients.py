@@ -5,6 +5,7 @@ from experiments import (roram_experiment, cockroach_experiment,
 from instance_session import (InstanceSession, INSTANCE_TYPES, RORAM_TYPES,
                               UORAM_TYPES, COCKROACH_TYPES, LYNCH_TYPES)
 import sys
+import time
 
 NUM_DATA_POINTS = 3
 NUM_CLIENTS = [3, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
@@ -104,6 +105,8 @@ def uoram_throughput_latency():
                                  DEFAULT_WARMUP,
                                  DEFAULT_K,
                                  initialize=True)
+
+                time.sleep(3 * 60)
 
                 # start experiment
                 results = uoram_experiment(num_clients // 3,
