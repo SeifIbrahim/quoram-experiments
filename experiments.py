@@ -16,10 +16,6 @@ DEFAULT_K = 40
 DEFAULT_REPLICAS = 3
 
 
-class TimeoutError(Exception):
-    pass
-
-
 def timeout(seconds=10 * 60, error_message=os.strerror(errno.ETIME)):
     def decorator(func):
         def _handle_timeout(signum, frame):
@@ -40,7 +36,7 @@ def timeout(seconds=10 * 60, error_message=os.strerror(errno.ETIME)):
     return decorator
 
 
-@timeout
+@timeout()
 def lynch_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
                      initialize):
     results = ''
@@ -121,7 +117,7 @@ def lynch_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops,
         return results
 
 
-@timeout
+@timeout()
 def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops, k,
                      initialize):
     results = ''
@@ -193,7 +189,7 @@ def uoram_experiment(clients, load_size, rw_ratio, zipf_exp, warmup_ops, k,
 
 
 # cockroach experiments
-@timeout
+@timeout()
 def cockroach_experiment(clients, test_duration, rw_ratio, zipf_exp,
                          warmup_ops, num_replicas, initialize, test_crash):
     results = ''
@@ -345,7 +341,7 @@ def cockroach_experiment(clients, test_duration, rw_ratio, zipf_exp,
 
 
 # replicated oram experiments
-@timeout
+@timeout()
 def roram_experiment(clients, test_duration, rw_ratio, zipf_exp, warmup_ops, k,
                      quorum_type, num_replicas, initialize, test_crash):
     results = ''

@@ -67,7 +67,7 @@ class InstanceSession:
         # establish an ssh connection
         for region, instances in self.region_instances.items():
             key = paramiko.RSAKey.from_private_key_file(
-                f'{Path.home()}.ssh/r-oram-{region}.pem')
+                f'{Path.home()}/.ssh/r-oram-{region}.pem')
             for instance in instances:
                 client = paramiko.SSHClient()
                 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())

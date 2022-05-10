@@ -2,10 +2,18 @@ import sys
 import glob
 import re
 from collections import defaultdict
+import os
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print(f'Usage: {sys.argv[0]} <file_prefix>')
+    if len(sys.argv) < 3:
+        print(f'Usage: {sys.argv[0]} <file_prefix> <directory>')
+        sys.exit(1)
+
+    try:
+        os.chdir(sys.argv[2])
+    except OSError as e:
+        print(e)
+        print(f'Usage: {sys.argv[0]} <file_prefix> <directory>')
         sys.exit(1)
 
     file_list = glob.glob(f'{sys.argv[1]}*.log')
@@ -34,9 +42,11 @@ if __name__ == '__main__':
             throughputs[run][config] = total_throughput
 
     print('Throughputs:')
-    for run in throughputs.values():
+    for i, run in throughputs.items():
+        print(f'Run {i}')
         print(','.join(str(kv[1]) for kv in sorted(run.items())))
 
     print('Latencies:')
-    for run in latencies.values():
+    for i, run in latencies.items():
+        print(f'Run {i}')
         print(','.join(str(kv[1]) for kv in sorted(run.items())))
