@@ -5,8 +5,8 @@ from collections import defaultdict
 import os
 
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print(f'Usage: {sys.argv[0]} <file_prefix> <directory>')
+    if len(sys.argv) < 4:
+        print(f'Usage: {sys.argv[0]} <file_prefix> <directory> <y/n>')
         sys.exit(1)
 
     try:
@@ -44,9 +44,13 @@ if __name__ == '__main__':
     print('Throughputs:')
     for i, run in throughputs.items():
         print(f'Run {i}')
-        print(','.join(str(kv[1]) for kv in sorted(run.items())))
+        print(','.join(
+            str(kv[1] if sys.argv[3] == 'n' else kv)
+            for kv in sorted(run.items())))
 
     print('Latencies:')
     for i, run in latencies.items():
         print(f'Run {i}')
-        print(','.join(str(kv[1]) for kv in sorted(run.items())))
+        print(','.join(
+            str(kv[1] if sys.argv[3] == 'n' else kv)
+            for kv in sorted(run.items())))

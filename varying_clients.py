@@ -86,7 +86,7 @@ def cockroach_throughput_latency():
             with open(f'cockroach_{num_clients}_{i}.log', 'w') as f:
                 f.write(results)
 
-    # stop roram
+    # stop cockroach
     session.stop_instances()
 
 
@@ -123,7 +123,7 @@ def uoram_throughput_latency():
             with open(f'uoram_{num_clients}_{i}.log', 'w') as f:
                 f.write(results)
 
-    # stop roram
+    # stop uoram
     session.stop_instances()
 
 
@@ -156,7 +156,7 @@ def lynch_throughput_latency():
             with open(f'lynch_{num_clients}_{i}.log', 'w') as f:
                 f.write(results)
 
-    # stop roram
+    # stop lynch
     session.stop_instances()
 
 
